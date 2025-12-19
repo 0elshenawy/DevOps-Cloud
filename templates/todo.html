@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>To-Do List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+  <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-semibold">To-Do for <span class="text-indigo-600">{{ username }}</span></h1>
+      <a href="/" class="text-sm text-gray-500">Register another user</a>
+    </div>
+
+    <form action="/todo/add" method="post" class="mb-4 flex gap-2">
+      <input type="hidden" name="user" value="{{ username }}" />
+      <input name="item" placeholder="New task..." required class="flex-1 p-2 border rounded" />
+      <button type="submit" class="bg-indigo-600 text-white rounded p-2">Add</button>
+    </form>
+
+    <div class="bg-gray-100 p-3 rounded h-64 overflow-auto">
+      {% if todos %}
+        <ul class="list-disc pl-5">
+        {% for t in todos %}
+          <li class="mb-1">{{ t }}</li>
+        {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-gray-500">No tasks yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
+
