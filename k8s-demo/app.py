@@ -2,16 +2,19 @@ from flask import Flask, request, redirect, url_for, render_template, flash
 from pathlib import Path
 import os
 import urllib.parse
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret")
 
-DATA_DIR = "./data"
+DATA_DIR = os.environ.get("DATA_DIR", "./data")
 Path(DATA_DIR).mkdir(parents=True, exist_ok=True)
 
 def user_file(username):
-    # sanitize simple: percent-encode username to avoid path injection
-    safe = urllib.parse.quote(username, safe='')
+    safe = urllib.parse.quote(username, safe="")
     return os.path.join(DATA_DIR, f"{safe}.txt")
 
 @app.route("/", methods=["GET"])
@@ -27,17 +30,15 @@ def register():
         flash("Please provide username and password", "error")
         return redirect(url_for("index"))
 
-    # Demo: store a single users file (append). In production, hash passwords!
     uf = user_file(username)
     try:
-        with open(uf, "a") as f:
+        with open(uf, "a", encoding="utf-8") as f:
             f.write(f"__CREATED_USER__|{username}|{password}\n")
     except Exception as e:
         flash(f"Error saving user: {e}", "error")
         return redirect(url_for("index"))
 
-    # redirect to todo page with username in query param
-    return redirect(url_for("todo") + f"?user={urllib.parse.quote(username)}")
+    return redirect(url_for("todo", user=username))
 
 @app.route("/todo", methods=["GET"])
 def todo():
@@ -48,14 +49,14 @@ def todo():
 
     uf = user_file(username)
     todos = []
+
     if os.path.exists(uf):
         try:
-            with open(uf, "r") as f:
+            with open(uf, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
                         continue
-                    # ignore created-user markers
                     if line.startswith("__CREATED_USER__|"):
                         continue
                     todos.append(line)
@@ -68,18 +69,19 @@ def todo():
 def todo_add():
     username = request.form.get("user", "").strip()
     item = request.form.get("item", "").strip()
+
     if not username or not item:
         flash("Missing user or item", "error")
         return redirect(url_for("index"))
 
     uf = user_file(username)
     try:
-        with open(uf, "a") as f:
+        with open(uf, "a", encoding="utf-8") as f:
             f.write(f"{item}\n")
     except Exception as e:
         flash(f"Error writing todo: {e}", "error")
 
-    return redirect(url_for("todo") + f"?user={urllib.parse.quote(username)}")
+    return redirect(url_for("todo", user=username))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
