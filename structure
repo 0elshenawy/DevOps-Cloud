@@ -1,0 +1,32 @@
+wordpress-project/
+│
+├── k8s/
+│   ├── storage/
+│   │   ├── wp-sc.yaml          # StorageClass for WordPress (EFS)
+│   │   └── mysql-sc.yaml       # StorageClass for MySQL (EBS)
+│   │
+│   ├── pvc/
+│   │   ├── wp-pvc.yaml         # PVC for WordPress
+│   │   └── mysql-pvc.yaml      # PVC for MySQL
+│   │
+│   ├── deployments/
+│   │   ├── wordpress-deploy.yaml   # WordPress Deployment
+│   │   └── mysql-deploy.yaml      # MySQL Deployment
+│   │
+│   ├── services/
+│   │   ├── wp-svc.yaml           # WordPress Service (LoadBalancer)
+│   │   └── mysql-svc.yaml        # MySQL ClusterIP Service
+│   │
+│   └── configmaps/
+│       └── wp-config.yaml        # Optional WordPress config/env
+│
+├── aws-iam/
+    ├── roles/  │   ├── efs-role.json          # IAM Role for EFS CSI access
+    │   ├── nodegroup-role.json    # IAM Role for EKS Nodes
+    │   └── wp-admin-role.json     # Admin role for kubectl access
+    │
+    └── policies/
+        ├── efs-policy.json
+        ├── eks-node-policy.json
+        └── wp-admin-policy.json
+

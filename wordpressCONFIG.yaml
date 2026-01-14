@@ -1,0 +1,88 @@
+# StorageClass {Dynamic provisioning (EFS)}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: wp-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-0a5041736031e54c0
+  accessPointId: fsap-0176b5fe7296465e5
+  directoryPerms: "0775"
+  uid: "33"
+  gid: "33"
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+---
+# PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wp-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: wp-sc
+  resources:
+    requests:
+      storage: 5Gi
+---
+# WordPress Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wp-deploy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: wordpress
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: wordpress
+        tier: frontend
+    spec:
+      securityContext:
+        fsGroup: 33  # (recommended even with SC enforcement)
+      containers:
+        - name: wordpress
+          image: wordpress:6.5-php8.2-apache
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: mysql-svc
+            - name: WORDPRESS_DB_NAME
+              value: wordpress
+            - name: WORDPRESS_DB_USER
+              value: wpuser
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-pass
+                  key: password
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: /var/www/html
+              name: wordpress-storage
+      volumes:
+        - name: wordpress-storage
+          persistentVolumeClaim:
+            claimName: wp-pvc
+---
+# WordPress Service (LB)
+apiVersion: v1
+kind: Service
+metadata:
+  name: wp-svc
+spec:
+  selector:
+    app: wordpress
+    tier: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  type: LoadBalancer

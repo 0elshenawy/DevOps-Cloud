@@ -1,0 +1,88 @@
+# Secret for MySQL passwords (root + application user)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-pass
+type: Opaque
+data:
+  password: MTIzNA==   # (base64 for "Mahmoud12")
+---
+# StorageClass
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: mysql-sc
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer # sc does not create volume until the deployment work.
+---
+# pvc
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: mysql-sc
+  resources:
+    requests:
+      storage: 5Gi
+---
+# MySQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deploy
+spec:
+  replicas: 1 # (DB depolyment must have on pod because the EKS access RWO it means EBS store data from one pod only)
+  selector:
+    matchLabels:
+      app: wordpress
+      tier: mysqlDB
+  template:
+    metadata:
+      labels:
+        app: wordpress
+        tier: mysqlDB
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-pass
+                  key: password
+            - name: MYSQL_DATABASE
+              value: wordpress
+            - name: MYSQL_USER
+              value: wpuser
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-pass
+                  key: password
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: mysql-storage
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+---
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-svc
+spec:
+  selector:
+    app: wordpress
+    tier: mysqlDB
+  ports:
+    - port: 3306
+      targetPort: 3306
+      protocol: TCP
