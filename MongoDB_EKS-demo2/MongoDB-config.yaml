@@ -1,0 +1,90 @@
+#secter key for MongoDB
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-secret
+type: Opaque
+data:
+  username: bWFobW91ZCBhYmRlbCBsYXRpZg==
+  password: MTIzNA==
+---
+#storageClass
+apiVersion: storage.k8s.io/v1
+kind: StorageClass 
+metadata:
+  name: mo-sc
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer  # sc does not create volume until the deployment work.
+--- 
+#PVC 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mo-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: mo-sc
+  resources:
+    requests:
+      storage: 5Gi
+---
+#MongoDB-Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: mo-deploy 
+spec:
+  selector:
+    matchLabels: 
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongodb-container
+          image: mongo 
+          ports:
+            - containerPort: 27017
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: password
+          volumeMounts:
+           - mountPath: /data/db 
+             name: mongodb-storage
+      volumes:
+        - name: mongodb-storage
+          persistentVolumeClaim:
+            claimName: mo-pvc
+--- 
+#MongoDB-Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mo-svc 
+spec: 
+  selector:
+    app: mongodb
+  ports:
+    - port: 27017
+      targetPort: 27017
+      protocol: TCP
+--- 
+#Config Map {to connect two deployment(apps) with one DataBase }
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mo-cm 
+data:
+  database_url: mo-svc
+---
