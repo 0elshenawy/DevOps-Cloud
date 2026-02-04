@@ -1,0 +1,23 @@
+node {
+    git branch : 'main', url: 'https://github.com/0elshenawy/DevOps-Cloud.git'
+    stage('build') {
+        try {
+            sh 'echo " building stage "'
+        }
+
+        catch (Expection e) {
+            sh 'echo "expection found "'
+            throw e 
+        }
+    }
+
+    stage ('test') {
+        if (env.BRANCH_NAME == 'feature') {
+             sh 'echo "testing stage "'
+        }
+        else {
+            sh 'echo "skipping testing stage "'
+        }
+       
+    }
+}
